@@ -1,0 +1,1 @@
+import{y as e}from"./index-CHJfkgVS.js";function o(t={}){return e.get("/customer",{params:t})}function s(t){return e.get(`/customer/${t}`)}function n(t){return e.post("/customer",t)}function c(t,r){return e.put(`/customer/${t}`,r)}function m(t){return e.delete(`/customer/${t}`)}export{s as a,n as c,m as d,o as f,c as u};

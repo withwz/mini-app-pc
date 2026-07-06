@@ -1,0 +1,1 @@
+import{y as e}from"./index-CHJfkgVS.js";function u(t={}){return e.get("/vr",{params:t})}function a(t){return e.get(`/vr/${t}`)}function c(t){return e.post("/vr",t)}function f(t,r){return e.put(`/vr/${t}`,r)}function o(t){return e.delete(`/vr/${t}`)}export{a,c,o as d,u as f,f as u};

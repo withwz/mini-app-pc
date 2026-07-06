@@ -1,0 +1,1 @@
+import{y as n}from"./index-CHJfkgVS.js";function e(r){return n.get("/brand/list",{params:r})}function u(r){return n.get(`/brand/detail/${r}`)}function d(r){return n.post("/brand",r)}function s(r,t){return n.put(`/brand/${r}`,t)}function c(r){return n.delete(`/brand/${r}`)}function i(r){return n.post(`/brand/${r}/mark-current`)}export{u as a,d as c,c as d,e as f,i as m,s as u};

@@ -1,0 +1,1 @@
+import{L as e}from"./LeadForm-DY7YptI8.js";import{a as r,o}from"./index-CHJfkgVS.js";import"./leads-CeYt97dJ.js";import"./_plugin-vue_export-helper-DlAUqK2U.js";const n={__name:"LeadCreate",setup(a){return(t,m)=>(o(),r(e,{mode:"create"}))}};export{n as default};

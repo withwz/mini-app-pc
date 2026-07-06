@@ -1,0 +1,1 @@
+import{y as a}from"./index-CHJfkgVS.js";function n(e){return a.get("/package/list",{params:e})}function r(e){return a.get(`/package/detail/${e}`)}function u(e){return a.post("/package",e)}function g(e,t){return a.put(`/package/${e}`,t)}function i(e){return a.delete(`/package/${e}`)}export{r as a,u as c,i as d,n as f,g as u};

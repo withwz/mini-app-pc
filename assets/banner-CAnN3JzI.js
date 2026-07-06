@@ -1,0 +1,1 @@
+import{y as e}from"./index-CHJfkgVS.js";function a(n={}){return e.get("/banner",{params:n})}function u(n){return e.get(`/banner/${n}`)}function c(n){return e.post("/banner",n)}function f(n,r){return e.put(`/banner/${n}`,r)}function o(n){return e.delete(`/banner/${n}`)}export{u as a,c,o as d,a as f,f as u};

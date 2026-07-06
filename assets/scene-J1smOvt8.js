@@ -1,0 +1,1 @@
+import{y as n}from"./index-CHJfkgVS.js";function r(e={}){return n.get("/scene",{params:e})}function s(e){return n.get(`/scene/${e}`)}function u(e){return n.post("/scene",e)}function a(e,t){return n.put(`/scene/${e}`,t)}function f(e){return n.delete(`/scene/${e}`)}export{s as a,u as c,f as d,r as f,a as u};

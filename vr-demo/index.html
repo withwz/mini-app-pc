@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VR 全景预览 Demo · JZ ERP</title>
+  <!--
+    自包含 VR 全景预览 demo（嵌入 jzerp 主项目）
+    · PSV 库从 jsdelivr CDN 加载（@photo-sphere-viewer/core@5.14.1）
+    · 图片与 HTML 同级（public/vr-demo/*.jpg），相对路径直接 ./<name>
+    · 与 jzerp 的 VR 模块共享这 10 张 PSV demo 图（无副本、零浪费）
+    · 与 vue-router 路由零耦合 —— 独立 HTML，独立 JS，独立样式
+    访问方式：
+      · dev server： http://localhost:5173/vr-demo/
+      · 生产构建：  npm run build → dist/vr-demo/ 原样保留
+                    把整个 dist 目录扔到任何静态 web 服务器，
+                    访问 /vr-demo/ 即可看到 demo，不依赖 jzerp 的 vue-router
+  -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5.14.1/index.min.css" />
+  <style>
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #f5f7fa;
+      color: #303133;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* === 顶部说明栏 === */
+    .app-header {
+      padding: 16px 24px;
+      background: #fff;
+      border-bottom: 1px solid #e4e7ed;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+    }
+    .app-header h1 {
+      margin: 0 0 4px;
+      font-size: 18px;
+      font-weight: 600;
+      color: #303133;
+    }
+    .app-header p {
+      margin: 0;
+      color: #909399;
+      font-size: 12px;
+    }
+    .app-header .badge {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 1px 8px;
+      background: #ecf5ff;
+      color: #409eff;
+      border-radius: 10px;
+      font-size: 11px;
+    }
+
+    /* === 主区：左列表 / 右预览 === */
+    .app-main {
+      flex: 1;
+      display: flex;
+      gap: 24px;
+      padding: 24px;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      align-items: flex-start;
+    }
+
+    /* --- 左：案例列表 --- */
+    .record-list {
+      width: 280px;
+      flex-shrink: 0;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      overflow: hidden;
+    }
+    .record-list-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #ebeef5;
+      font-size: 13px;
+      color: #909399;
+      font-weight: 500;
+    }
+    .record-item {
+      padding: 12px 16px;
+      cursor: pointer;
+      border-bottom: 1px solid #f5f7fa;
+      transition: background 0.15s;
+    }
+    .record-item:last-child { border-bottom: 0; }
+    .record-item:hover { background: #f5f7fa; }
+    .record-item.active {
+      background: #ecf5ff;
+      box-shadow: inset 3px 0 0 #409eff;
+    }
+    .record-item-name {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #303133;
+    }
+    .record-item.active .record-item-name { color: #409eff; }
+    .record-item-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+    .record-item-tag {
+      font-size: 11px;
+      padding: 1px 6px;
+      background: #f4f4f5;
+      color: #909399;
+      border-radius: 3px;
+    }
+    .record-item.active .record-item-tag {
+      background: #d9ecff;
+      color: #409eff;
+    }
+    .record-item-meta {
+      font-size: 11px;
+      color: #c0c4cc;
+    }
+
+    /* --- 右：手机竖屏预览框（9:16）--- */
+    .viewer-stage {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .viewer-frame {
+      width: 360px;
+      max-width: 100%;
+      aspect-ratio: 9 / 16;
+      background: #000;
+      border-radius: 16px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    }
+    .psv-container {
+      position: absolute;
+      inset: 0;
+    }
+    .psv-container:empty::before {
+      content: '请选择左侧案例';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #606266;
+      font-size: 14px;
+    }
+
+    /* 顶部场景名（与 jzerp 列表缩略图同位置 / 同字号） */
+    .scene-name {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      padding: 4px 10px;
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      border-radius: 12px;
+      font-size: 12px;
+      z-index: 10;
+      pointer-events: none;
+      max-width: calc(100% - 24px);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .scene-name:empty { display: none; }
+
+    /* 底部缩略图条（与 jzerp VRViewer 同结构） */
+    .thumb-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      gap: 6px;
+      padding: 8px 10px;
+      background: rgba(0, 0, 0, 0.7);
+      overflow-x: auto;
+      z-index: 10;
+    }
+    .thumb-bar:empty { display: none; }
+    .thumb {
+      flex: 0 0 auto;
+      width: 56px;
+      height: 56px;
+      border-radius: 4px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      background: none;
+      padding: 0;
+      overflow: hidden;
+      transition: border-color 0.15s, transform 0.1s;
+    }
+    .thumb:hover { transform: scale(1.04); }
+    .thumb.active { border-color: #409eff; }
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* 加载层 */
+    .loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      color: #fff;
+      font-size: 14px;
+      z-index: 20;
+      gap: 8px;
+    }
+    .loading-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading.hidden { display: none; }
+
+    /* 错误层 */
+    .error-msg {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 8px;
+      background: #000;
+      color: #f56c6c;
+      font-size: 14px;
+      z-index: 20;
+      padding: 16px;
+      text-align: center;
+    }
+    .error-msg.hidden { display: none; }
+
+    /* 底部说明 */
+    .viewer-tip {
+      color: #909399;
+      font-size: 12px;
+      text-align: center;
+      max-width: 360px;
+      line-height: 1.5;
+    }
+
+    /* 响应式：窄屏堆叠 */
+    @media (max-width: 768px) {
+      .app-main { flex-direction: column; padding: 12px; gap: 12px; }
+      .record-list { width: 100%; max-height: 180px; overflow-y: auto; }
+      .viewer-frame { width: min(360px, 90vw); }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>VR 全景预览 Demo<span class="badge">3 条样例</span></h1>
+    <p>基于 jzerp 「VR 全景管理」模块 · @photo-sphere-viewer/core@5.14.1</p>
+  </header>
+
+  <main class="app-main">
+    <aside class="record-list" id="recordList" aria-label="案例列表">
+      <div class="record-list-header">案例列表</div>
+    </aside>
+
+    <div class="viewer-stage">
+      <div class="viewer-frame">
+        <div class="scene-name" id="sceneName"></div>
+        <div class="loading" id="loading"><div class="loading-spinner"></div>加载全景中…</div>
+        <div class="error-msg hidden" id="errorMsg"></div>
+        <div class="psv-container" id="psvContainer"></div>
+        <div class="thumb-bar" id="thumbBar"></div>
+      </div>
+      <p class="viewer-tip">鼠标拖动旋转全景；滚轮缩放；右下角控制条可全屏。多场景案例点击底部缩略图切换。</p>
+    </div>
+  </main>
+
+  <script type="module">
+    import { Viewer } from 'https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5.14.1/+esm'
+
+    // === 样例数据 ===
+    // 3 条记录，命名 / 标签 / 场景数与 jzerp 真实业务数据同构
+    // 图片与 HTML 同级，直接写文件名（相对路径）
+    const records = [
+      {
+        id: 1,
+        name: '北欧极简客厅 89㎡',
+        tags: ['北欧', '极简', '客厅'],
+        enabled: true,
+        sort: 1,
+        createdAt: '2026-05-20 10:30:00',
+        scenes: [
+          { id: 's1', name: '客厅', image: 'sphere-opt.jpg', isDefault: true }
+        ]
+      },
+      {
+        id: 21,
+        name: '现代轻奢三居 108㎡',
+        tags: ['现代', '轻奢', '三居', '样板间'],
+        enabled: true,
+        sort: 0,
+        createdAt: '2026-05-25 14:20:00',
+        scenes: [
+          { id: 's1', name: '客厅', image: 'key-biscayne-1-opt.jpg', isDefault: true },
+          { id: 's2', name: '主卧', image: 'interior-castle-church.jpg', isDefault: false },
+          { id: 's3', name: '次卧', image: 'interior-sandburg-bedroom.jpg', isDefault: false }
+        ]
+      },
+      {
+        id: 23,
+        name: '新中式大平层 168㎡',
+        tags: ['新中式', '大平层', '高端', '样板间'],
+        enabled: true,
+        sort: 0,
+        createdAt: '2026-05-22 09:15:00',
+        scenes: [
+          { id: 's1', name: '客厅', image: 'key-biscayne-2-opt.jpg', isDefault: true },
+          { id: 's2', name: '主卧', image: 'interior-rheingauer.jpg', isDefault: false },
+          { id: 's3', name: '厨房', image: 'interior-stpeter.jpg', isDefault: false },
+          { id: 's4', name: '书房', image: 'interior-barracks.jpg', isDefault: false },
+          { id: 's5', name: '阳台', image: 'interior-chapel.jpg', isDefault: false },
+          { id: 's6', name: '玄关', image: 'sphere-small.jpg', isDefault: false }
+        ]
+      }
+    ]
+
+    // === DOM 引用 ===
+    const $recordList = document.getElementById('recordList')
+    const $psv = document.getElementById('psvContainer')
+    const $thumbBar = document.getElementById('thumbBar')
+    const $sceneName = document.getElementById('sceneName')
+    const $loading = document.getElementById('loading')
+    const $errorMsg = document.getElementById('errorMsg')
+
+    let viewer = null
+    let currentRecord = null
+    let currentSceneId = null
+
+    function showError(msg) {
+      $errorMsg.textContent = msg
+      $errorMsg.classList.remove('hidden')
+      $loading.classList.add('hidden')
+    }
+    function clearError() {
+      $errorMsg.classList.add('hidden')
+      $errorMsg.textContent = ''
+    }
+
+    function renderRecordList() {
+      // 保留 header，清空后续
+      const items = records.map(r => `
+        <div class="record-item" data-id="${r.id}" role="button" tabindex="0">
+          <div class="record-item-name">${escapeHtml(r.name)}</div>
+          <div class="record-item-tags">
+            ${r.tags.map(t => `<span class="record-item-tag">${escapeHtml(t)}</span>`).join('')}
+          </div>
+          <div class="record-item-meta">${r.scenes.length} 个场景 · 排序 ${r.sort} · ${r.enabled ? '启用' : '禁用'}</div>
+        </div>
+      `).join('')
+      $recordList.insertAdjacentHTML('beforeend', items)
+      $recordList.querySelectorAll('.record-item').forEach(el => {
+        el.addEventListener('click', () => selectRecord(Number(el.dataset.id)))
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            selectRecord(Number(el.dataset.id))
+          }
+        })
+      })
+    }
+
+    function selectRecord(id) {
+      const r = records.find(x => x.id === id)
+      if (!r) return
+
+      currentRecord = r
+      // 标记 active
+      document.querySelectorAll('.record-item').forEach(el => {
+        el.classList.toggle('active', Number(el.dataset.id) === id)
+      })
+
+      // 销毁旧 viewer（关键：PSV 不允许同一容器复用，必须先 destroy）
+      if (viewer) {
+        try { viewer.destroy() } catch (_) { /* 忽略 */ }
+        viewer = null
+        $psv.innerHTML = ''
+      }
+
+      clearError()
+      $loading.classList.remove('hidden')
+
+      if (!r.scenes.length) {
+        showError('该 VR 全景暂无场景素材')
+        return
+      }
+      const def = r.scenes.find(s => s.isDefault) || r.scenes[0]
+      currentSceneId = def.id
+      $sceneName.textContent = def.name
+      renderThumbs(r.scenes)
+
+      try {
+        viewer = new Viewer({
+          container: $psv,
+          panorama: def.image,
+          navbar: ['zoom', 'move', 'fullscreen'],
+          defaultZoomLvl: 0
+        })
+        viewer.once('ready', () => $loading.classList.add('hidden'))
+      } catch (err) {
+        showError('PSV 初始化失败：' + (err?.message || err))
+      }
+    }
+
+    function renderThumbs(scenes) {
+      $thumbBar.innerHTML = scenes.map(s => `
+        <button class="thumb ${s.id === currentSceneId ? 'active' : ''}" data-id="${escapeHtml(s.id)}" title="${escapeHtml(s.name)}" aria-label="切换到场景 ${escapeHtml(s.name)}">
+          <img src="${escapeHtml(s.image)}" alt="${escapeHtml(s.name)}" />
+        </button>
+      `).join('')
+      $thumbBar.querySelectorAll('.thumb').forEach(el => {
+        el.addEventListener('click', () => switchScene(el.dataset.id))
+      })
+    }
+
+    function switchScene(sid) {
+      const s = currentRecord.scenes.find(x => x.id === sid)
+      if (!s || !viewer) return
+      currentSceneId = sid
+      $sceneName.textContent = s.name
+      viewer.setPanorama(s.image)
+      document.querySelectorAll('.thumb').forEach(t => {
+        t.classList.toggle('active', t.dataset.id === sid)
+      })
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]))
+    }
+
+    // === 启动 ===
+    renderRecordList()
+    selectRecord(1)
+  </script>
+</body>
+</html>

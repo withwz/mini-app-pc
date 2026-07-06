@@ -1,0 +1,1 @@
+import{y as t}from"./index-CHJfkgVS.js";function n(e={}){return t.get("/case",{params:e})}function r(e){return t.get(`/case/${e}`)}function c(e){return t.post("/case",e)}function u(e,a){return t.put(`/case/${e}`,a)}function f(e){return t.delete(`/case/${e}`)}export{r as a,c,f as d,n as f,u};
